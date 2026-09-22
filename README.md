@@ -1,7 +1,7 @@
 # dsh-plugin-mobile-bridge
 
-DSH 手机通道桌面桥插件：把 `relay/bridge.mjs` 的转发逻辑做成 dsh profile
-插件（npm bundle），**随 dsh 启停自动挂载**，不再手动开脚本。
+DSH 手机通道桌面桥插件：把 [`../dsh-relay-service/test/bridge.mjs`](../dsh-relay-service/test/bridge.mjs)
+的转发逻辑做成 dsh profile 插件（npm bundle），**随 dsh 启停自动挂载**，不再手动开脚本。
 
     relay(公网) ←─ WS(dsh-relay-v1) ─→ 本桥(dsh 内) ─→ http://127.0.0.1:3080
 
@@ -25,7 +25,7 @@ dsh plugin --profile <name> add link:<同盘 junction 或插件目录>
   （实测免重启生效：插入后数秒插件 apply、桥连上 relay）；
 - ⚠️ **跨盘符坑**：pnpm 对 `link:`/`file:` 目标会归一为相对路径，跨盘符
   （如源码在 D:、profile 在 C:）会拼出坏 junction。解决：在同盘建 junction
-  桥接再 link（本机做法：`mklink /J C:\Users\<you>\.dsh\plugins\dsh-plugin-mobile-bridge <仓库>\relay\dsh-plugin-mobile-bridge`，
+  桥接再 link（本机做法：`mklink /J C:\Users\<you>\.dsh\plugins\dsh-plugin-mobile-bridge D:\code\cicbyte\dsh-relay\dsh-relay-plugin`，
   然后 `link:C:/Users/<you>/.dsh/plugins/dsh-plugin-mobile-bridge`）。
 
 ## 界面配置（设置 →「手机通道」）
@@ -102,8 +102,8 @@ $env:RELAY_CODE='<配对码>'; node lib/bridge.js
 ```powershell
 node test\apply-smoke.mjs            # 插件形状 + effect 生命周期
 # 全链路：起 relay 与本桥后
-node ..\test-client.mjs              # HTTP 通道
-node ..\test-mux.mjs ws://<relay> <code> <sessionId>   # WS 隧道
+node ..\..\dsh-relay-service\test\test-client.mjs              # HTTP 通道
+node ..\..\dsh-relay-service\test\test-mux.mjs ws://<relay> <code> <sessionId>   # WS 隧道
 ```
 
 ## 实现要点
