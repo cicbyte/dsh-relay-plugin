@@ -1,0 +1,30 @@
+{
+  "name": "dsh-plugin-mobile-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DSH 手机通道桌面桥插件：随 dsh 启停自动挂载，把 dsh-relay 流量（HTTP/WS）转发到本机 dsh web",
+  "type": "module",
+  "main": "./lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./plugin": "./lib/impl.js",
+    "./bridge": "./lib/bridge.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-settings"
+      ],
+      "immediately": true
+    }
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
