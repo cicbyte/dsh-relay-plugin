@@ -5,7 +5,6 @@
 > DSH phone-channel bridge plugin: installs into a dsh profile and mounts/unmounts together with dsh, forwarding relay traffic (HTTP/WS) to the local dsh web — so your phone can safely reach your home dsh even off the LAN.
 
 > The npm package name matches the repository name; in the profile's `insert` patch, set `name:` to `dsh-relay-plugin` (the `id` is arbitrary — examples keep `mobile-bridge`).
-> The legacy package name was `dsh-plugin-mobile-bridge`; if you installed an older version, update the `name:` in your patch (takes effect on cold start).
 
 ```
 Phone app ──cloud mode──▶ relay (public VPS) ──WS dsh-relay-v1──▶ this plugin (inside the dsh process) ──▶ http://127.0.0.1:3080 (local dsh web)

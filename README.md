@@ -5,7 +5,6 @@
 > DSH 手机通道桥插件：装进 dsh profile 随其启停自动挂载，把 relay 流量（HTTP/WS）转发到本机 dsh web —— 手机在外网也能安全操作家里的 dsh。
 
 > npm 包名与仓库名一致；装进 profile 时 `insert` 的 `name:` 填 `dsh-relay-plugin`（`id` 仍可任意，示例沿用 `mobile-bridge`）。
-> 旧版包名为 `dsh-plugin-mobile-bridge`，装过的 profile 把补丁里的 `name:` 改过来即可（冷启动生效）。
 
 ```
 手机 App ──云端模式──▶ relay（公网 VPS）──WS dsh-relay-v1──▶ 本插件（dsh 进程内）──▶ http://127.0.0.1:3080（本机 dsh web）
