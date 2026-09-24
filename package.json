@@ -1,5 +1,5 @@
 {
-  "name": "dsh-plugin-mobile-bridge",
+  "name": "dsh-relay-plugin",
   "version": "0.1.0",
   "private": true,
   "description": "DSH 手机通道桌面桥插件：随 dsh 启停自动挂载，把 dsh-relay 流量（HTTP/WS）转发到本机 dsh web",

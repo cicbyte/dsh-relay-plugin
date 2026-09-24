@@ -2,7 +2,8 @@
 
 > DSH 手机通道桥插件：装进 dsh profile 随其启停自动挂载，把 relay 流量（HTTP/WS）转发到本机 dsh web —— 手机在外网也能安全操作家里的 dsh。
 
-> npm 包名 / dsh 插件 id：`dsh-plugin-mobile-bridge`（仓库与包不同名，装进 profile 时用的是包名）。
+> npm 包名与仓库名一致；装进 profile 时 `insert` 的 `name:` 填 `dsh-relay-plugin`（`id` 仍可任意，示例沿用 `mobile-bridge`）。
+> 旧版包名为 `dsh-relay-plugin`，装过的 profile 把补丁里的 `name:` 改过来即可（冷启动生效）。
 
 ```
 手机 App ──云端模式──▶ relay（公网 VPS）──WS dsh-relay-v1──▶ 本插件（dsh 进程内）──▶ http://127.0.0.1:3080（本机 dsh web）
@@ -48,15 +49,15 @@ dsh plugin --profile <name> add link:<同盘 junction 或插件目录>
 #    C:\Users\<you>\.dsh\profiles\<name>\cordis.patch.yml
 # - insert:
 #     - id: mobile-bridge
-#       name: dsh-plugin-mobile-bridge
+#       name: dsh-relay-plugin
 ```
 
 - 改对该 profile 的 `cordis.patch.yml` 后 `patchReload: live` 即时热挂载（插入后数秒插件 apply、桥连上 relay）；
 - ⚠️ **跨盘符坑**：pnpm 对 `link:` / `file:` 目标会归一为相对路径，跨盘符（如源码在 D:、profile 在 C:）会拼出坏 junction。解决：在同盘建 junction 再 link：
 
 ```powershell
-mklink /J C:\Users\<you>\.dsh\plugins\dsh-plugin-mobile-bridge D:\code\cicbyte\dsh-mobile\dsh-relay\dsh-relay-plugin
-# 然后 dsh plugin --profile <name> add link:C:/Users/<you>/.dsh/plugins/dsh-plugin-mobile-bridge
+mklink /J C:\Users\<you>\.dsh\plugins\dsh-relay-plugin D:\code\cicbyte\dsh-mobile\dsh-relay\dsh-relay-plugin
+# 然后 dsh plugin --profile <name> add link:C:/Users/<you>/.dsh/plugins/dsh-relay-plugin
 ```
 
 ## 手机端接入
@@ -117,7 +118,7 @@ mklink /J C:\Users\<you>\.dsh\plugins\dsh-plugin-mobile-bridge D:\code\cicbyte\d
 **彻底卸载**：
 
 ```powershell
-dsh plugin --profile <name> remove dsh-plugin-mobile-bridge
+dsh plugin --profile <name> remove dsh-relay-plugin
 ```
 
 或在 profile 的 `cordis.patch.yml` 把该 insert 段删掉（live 重载即拆）。
@@ -164,7 +165,7 @@ node ..\dsh-relay-service\test\test-mux.mjs ws://<relay> <code> <sessionId> # WS
 - 改宿主半转发逻辑：`impl.js` 内部对 `bridge.js` 用 `?t=` query 破缓存动态导入——改 `lib/bridge.js` 后补丁层摘除/重插 entry 即生效，免换包；
 - 改 `lib/client.js`：免重挂 entry（client-hmr `rebuilt()` 重哈希，下次页面加载生效）；
 - `webServer` 的 handler 是 **node 风格 `(req, res)`**（不是 fetch Response）；
-- 冷启动后缓存清零，entry name 直接用 `dsh-plugin-mobile-bridge` 即可。
+- 冷启动后缓存清零，entry name 直接用 `dsh-relay-plugin` 即可。
 
 ## 开源许可证
 
