@@ -1,6 +1,7 @@
 // 插件形状冒烟：apply + 行配置 schema + /mobile-bridge 路由注册 + volatile 热重启 + disposer 生命周期。
 // 含 2026-09-30 实锤的崩溃形态回归：loader 热替换会传 null config（默认参数只兜 undefined）。
 // 用法：node test/apply-smoke.mjs
+import * as mod from '../lib/index.js';
 import { apply, Config } from '../lib/index.js';
 
 function mkCtx() {
@@ -28,6 +29,12 @@ const assert = (cond, label) => {
 };
 
 assert(Config && (typeof Config === 'object' || typeof Config === 'function'), 'Config schema 导出（volatile 字段 = 行配置表单数据源）');
+
+// ---- schema 可见性回归（2026-10-01 实锤）：loader 取 exports.default ?? exports，
+// runtime 只读 plugin.Config——default 若是裸函数，schema 整个丢失、表单 describe 跳过本条目 ----
+const loaderPlugin = mod.default ?? mod;
+assert(typeof loaderPlugin.apply === 'function', 'loader 视角：plugin.apply 可解析');
+assert(loaderPlugin.Config !== undefined && loaderPlugin.Config !== null, 'loader 视角：plugin.Config 可见（否则行配置表单为空白）');
 
 // ---- 正常形态：裸字符串值 = 冷启动直载/测试桩形态 ----
 const a = mkCtx();
