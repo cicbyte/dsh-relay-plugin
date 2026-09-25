@@ -19,7 +19,7 @@ Phone app ──cloud mode──▶ relay (public VPS) ──WS dsh-relay-v1─�
 
 ## Features
 
-- **Auto-mounts with dsh** — cordis bundle plugin; `patchReload: live` hot-mounts without restarts, no more hand-run scripts;
+- **Auto-mounts with dsh** — cordis bundle plugin (declares `dsh.bundle` with its own mount patch; `dsh plugin add` is all it takes), `patchReload: live` hot-mounts without restarts, no more hand-run scripts;
 - **Visual configuration in Settings** — dsh Settings → "Phone Channel" (手机通道) edits the relay URL / pairing code / local dsh URL; saving takes effect immediately (the bridge reconnects with the new config); cleared fields fall back to file/env defaults;
 - **Dual-channel QR onboarding** — cloud: the bridge uses its device token to proxy-issue a one-time pairing code and renders a `dshrelay://` QR (no admin console needed — family members just scan); LAN: a `dshlan://` direct-connect QR (security code = web launch token);
 - **Resumable reconnect (protocol v3)** — a relay disconnect no longer tears down local tunnels; outbound frames queue up and are replayed from the resume point after reconnect; simultaneous small frames are coalesced into `batch` envelopes with zero added latency;
@@ -28,7 +28,7 @@ Phone app ──cloud mode──▶ relay (public VPS) ──WS dsh-relay-v1─�
 
 ## Contents
 
-- [Install into a profile (activation = two steps)](#install-into-a-profile-activation--two-steps)
+- [Install into a profile (activation = one step)](#install-into-a-profile-activation--one-step)
 - [Connect your phone](#connect-your-phone)
 - [Configuration (highest priority first)](#configuration-highest-priority-first)
 - [Pairing & device credentials (protocol v2)](#pairing--device-credentials-protocol-v2)
@@ -37,23 +37,19 @@ Phone app ──cloud mode──▶ relay (public VPS) ──WS dsh-relay-v1─�
 - [Testing](#testing)
 - [Implementation notes](#implementation-notes)
 
-## Install into a profile (activation = two steps)
+## Install into a profile (activation = one step)
 
 ```powershell
 # 0) First confirm which profile dsh actually runs! (wrong profile = nobody watches it, looks like "hot reload broke")
 #    Get-CimInstance Win32_Process -Filter "Name='node.exe'" — look at --profile <name>
 #    DeepSeek Harness Desktop = tauri; dsh web = web
-# 1) Install the dependency (⚠️ cross-drive pitfall below)
+# 1) Installing the package activates it: the package declares dsh.bundle (ships its own cordis.patch.yml
+#    mounting the mobile-bridge entry), the profile composer applies the patch automatically, and the
+#    plugin mounts with dsh start/stop; patch changes hot-mount via patchReload: live
 dsh plugin --profile <name> add link:<same-drive junction or plugin directory>
-
-# 2) Activate: add an insert to that profile's cordis.patch.yml (same mechanism as the amber theme)
-#    C:\Users\<you>\.dsh\profiles\<name>\cordis.patch.yml
-# - insert:
-#     - id: mobile-bridge
-#       name: dsh-relay-plugin
 ```
 
-- After editing that profile's `cordis.patch.yml`, `patchReload: live` hot-mounts immediately (seconds after the insert, the plugin applies and the bridge connects to the relay);
+- ⚠️ **Don't double-mount**: if you previously hand-wrote an insert into the profile's `cordis.patch.yml`, delete that block after installing — the bundle ships the same insert, and two same-id entries would fight over the relay;
 - ⚠️ **Cross-drive pitfall**: pnpm normalizes `link:` / `file:` targets to relative paths; across drives (sources on D:, profile on C:) it builds a broken junction. Fix: create a same-drive junction first, then link:
 
 ```powershell

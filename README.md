@@ -19,7 +19,7 @@
 
 ## 功能特性
 
-- **随 dsh 启停自动挂载** — cordis bundle 插件，`patchReload: live` 热挂载免重启，不再手动开脚本；
+- **随 dsh 启停自动挂载** — cordis bundle 插件（声明 `dsh.bundle` 自带挂载补丁，`dsh plugin add` 即激活），`patchReload: live` 热挂载免重启，不再手动开脚本；
 - **设置页可视配置** — dsh 设置 →「手机通道」改 Relay 地址 / 配对码 / 本机 dsh 地址，保存即热生效（桥立即换配置重连）；字段清除后回落文件/环境变量兜底；
 - **双通道扫码接入** — 云端：桥用设备令牌代领一次性配对码出 `dshrelay://` 二维码（免管理台，家人扫码即接入）；局域网：`dshlan://` 直连二维码（安全码 = web launch token）；
 - **断线续传（协议 v3）** — relay 断线不拆本地隧道，出站帧进队列，重连后从断点回放无缝续流；同刻小帧合并 `batch` 信封零额外延迟；
@@ -28,7 +28,7 @@
 
 ## 目录
 
-- [装进 profile（激活 = 两步）](#装进-profile激活--两步)
+- [装进 profile（激活 = 一步）](#装进-profile激活--一步)
 - [手机端接入](#手机端接入)
 - [配置](#配置优先级从高到低)
 - [配对与设备凭据（协议 v2）](#配对与设备凭据协议-v2)
@@ -37,23 +37,18 @@
 - [测试](#测试)
 - [实现要点](#实现要点)
 
-## 装进 profile（激活 = 两步）
+## 装进 profile（激活 = 一步）
 
 ```powershell
 # 0) 先确认 dsh 实际跑的 profile！（改错 profile = 没人 watch，像"热重载坏了"）
 #    Get-CimInstance Win32_Process -Filter "Name='node.exe'" 看 --profile <name>
 #    DeepSeek Harness Desktop = tauri；dsh web = web
-# 1) 装依赖（⚠️ 跨盘符坑见下）
+# 1) 装包即激活：包声明了 dsh.bundle（自带 cordis.patch.yml 挂 mobile-bridge entry），
+#    profile 组装器自动应用补丁，随 dsh 启停挂载；补丁变更 patchReload: live 热挂载
 dsh plugin --profile <name> add link:<同盘 junction 或插件目录>
-
-# 2) 激活：在该 profile 的 cordis.patch.yml 加 insert（与琥珀主题同机制）
-#    C:\Users\<you>\.dsh\profiles\<name>\cordis.patch.yml
-# - insert:
-#     - id: mobile-bridge
-#       name: dsh-relay-plugin
 ```
 
-- 改对该 profile 的 `cordis.patch.yml` 后 `patchReload: live` 即时热挂载（插入后数秒插件 apply、桥连上 relay）；
+- ⚠️ **别重复挂**：早先手工在 profile 的 `cordis.patch.yml` 写过 insert 的，装本包后把那段删掉——bundle 自带同一段 insert，同 id 双份会挂出两个 entry 抢 relay；
 - ⚠️ **跨盘符坑**：pnpm 对 `link:` / `file:` 目标会归一为相对路径，跨盘符（如源码在 D:、profile 在 C:）会拼出坏 junction。解决：在同盘建 junction 再 link：
 
 ```powershell
