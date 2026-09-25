@@ -20,7 +20,7 @@
 ## 功能特性
 
 - **随 dsh 启停自动挂载** — cordis bundle 插件（声明 `dsh.bundle` 自带挂载补丁，`dsh plugin add` 即激活），`patchReload: live` 热挂载免重启，不再手动开脚本；
-- **设置页可视配置** — dsh 设置 →「手机通道」改 Relay 地址 / 配对码 / 本机 dsh 地址，保存即热生效（桥立即换配置重连）；字段清除后回落文件/环境变量兜底；
+- **插件页可视配置** — dsh 设置 → 插件 → 本包行的「配置」：volatile 字段（Relay 地址 / 配对码 / 本机 dsh 地址）保存即写回本行 config，桥热重启生效；字段清除后回落文件/环境变量兜底；
 - **双通道扫码接入** — 云端：桥用设备令牌代领一次性配对码出 `dshrelay://` 二维码（免管理台，家人扫码即接入）；局域网：`dshlan://` 直连二维码（安全码 = web launch token）；
 - **断线续传（协议 v3）** — relay 断线不拆本地隧道，出站帧进队列，重连后从断点回放无缝续流；同刻小帧合并 `batch` 信封零额外延迟；
 - **自愈重连** — 收到 `welcome` 才重置退避；凭据类拒绝与限流走 ≥30s 长退避并尊重服务端 `retryAfterSecs`，杜绝重连风暴；
@@ -60,15 +60,15 @@ mklink /J C:\Users\<you>\.dsh\plugins\dsh-relay-plugin D:\code\cicbyte\dsh-mobil
 
 | 模式 | 操作 | 二维码协议 |
 |---|---|---|
-| 云端转发 | 桥完成配对后，设置页「手机连接二维码」→ 手机 App（云端转发）扫码，自动建转发环境并配对 | `dshrelay://<relay-host>/?pair=<一次性码>&room=<房间>&name=<名>` |
-| 局域网直连 | 设置页「局域网直连」卡 → 出码 → 手机 App 扫码直达本机 dsh web（不经 relay） | `dshlan://<局域网IP>:<dshPort>/?code=<launch token>&name=<电脑名>` |
+| 云端转发 | 桥完成配对后，插件行配置页「手机连接二维码」→ 手机 App（云端转发）扫码，自动建转发环境并配对 | `dshrelay://<relay-host>/?pair=<一次性码>&room=<房间>&name=<名>` |
+| 局域网直连 | 插件行配置页「局域网直连」卡 → 出码 → 手机 App 扫码直达本机 dsh web（不经 relay） | `dshlan://<局域网IP>:<dshPort>/?code=<launch token>&name=<电脑名>` |
 
-两个入口都由本插件的 dsh web 路由供码：`GET /mobile-bridge/status`（状态，设置页 5s 轮询：relay 连接 / 手机在线 / 活动隧道数 / 连接时刻）、`POST /mobile-bridge/invite`（代领配对码）、`GET /mobile-bridge/lan-qr`（局域网出码）。
+两个入口都由本插件的 dsh web 路由供码：`GET /mobile-bridge/status`（状态，行配置页 5s 轮询：relay 连接 / 手机在线 / 活动隧道数 / 连接时刻）、`POST /mobile-bridge/invite`（代领配对码）、`GET /mobile-bridge/lan-qr`（局域网出码）。
 
 ## 配置（优先级从高到低）
 
-1. **设置 →「手机通道」**（Host 设置文档 `mobile-bridge` 命名空间用户层，实时热生效；字段清除后回落 base 组合层）；
-2. **loader entry `config` / 环境变量 / `$DSH_HOME/mobile-bridge.json`**（同时构成设置的 base 组合层）：
+1. **设置 → 插件 → 本包行的「配置」**（行 config 的 volatile 字段，保存经 ConfigEditor 写回 profile patch，`loader/volatile-update` 通知桥热重启；字段清除回落兜底层）；
+2. **环境变量 / `$DSH_HOME/mobile-bridge.json`**（行 config 未设字段的兜底）：
 
 ```json
 {
@@ -109,7 +109,7 @@ mklink /J C:\Users\<you>\.dsh\plugins\dsh-relay-plugin D:\code\cicbyte\dsh-mobil
   disabled: true
 ```
 
-生效即拆桥（关连接与隧道）、状态路由与「手机通道」面板随之下线（页面刷新后）。补丁语法：`insert` 是 push 语义；其余段按 `id` 定向覆盖 entry 字段（`name` 可选、写了必须匹配否则跳过）。
+生效即拆桥（关连接与隧道）、状态路由与行配置页随之下线（页面刷新后）。补丁语法：`insert` 是 push 语义；其余段按 `id` 定向覆盖 entry 字段（`name` 可选、写了必须匹配否则跳过）。
 
 **彻底卸载**：
 
@@ -149,8 +149,8 @@ node ..\dsh-relay-service\test\test-mux.mjs ws://<relay> <code> <sessionId> # WS
 | 文件 | 职责 |
 |---|---|
 | `lib/bridge.js` | `MobileBridge` 核心：`dsh-relay-v1` 帧对齐 relay（hello/welcome、http-req/res、ws-open/frame/close（`__open__` 哨兵、rid 幂等重开）、ping/pong、batch/resume、peer 离线拆隧道）+ `resolveConfig` 三级配置 + `update(config)` 换配置热重启 + 独立入口 |
-| `lib/impl.js` | 宿主半：`apply(ctx, config)`——settings 命名空间注册 + `settings/updated` 热重载 + `/mobile-bridge/*` 路由（status / invite / lan-qr） |
-| `lib/client.js` | 浏览器半：设置页「手机通道」（`__ModuleLoader__` 工厂 + `settings.section` 槽位 + `settingsScope.bind` 读写） |
+| `lib/impl.js` | 宿主半：`apply(ctx, config)`——Config schema（volatile 字段）+ `loader/volatile-update` 热重启 + `/mobile-bridge/*` 路由（status / invite / lan-qr） |
+| `lib/client.js` | 浏览器半：插件管理页「行配置」页（`plugins.row.config` 槽位，`{ view, form }` 驱动 volatile 表单） |
 | `lib/index.js` | 薄壳转出（入口兼容） |
 | `tools/standalone.mjs` | 独立运行入口（不经 dsh 插件宿主） |
 

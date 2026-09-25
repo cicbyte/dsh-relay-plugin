@@ -20,7 +20,7 @@ Phone app ──cloud mode──▶ relay (public VPS) ──WS dsh-relay-v1─�
 ## Features
 
 - **Auto-mounts with dsh** — cordis bundle plugin (declares `dsh.bundle` with its own mount patch; `dsh plugin add` is all it takes), `patchReload: live` hot-mounts without restarts, no more hand-run scripts;
-- **Visual configuration in Settings** — dsh Settings → "Phone Channel" (手机通道) edits the relay URL / pairing code / local dsh URL; saving takes effect immediately (the bridge reconnects with the new config); cleared fields fall back to file/env defaults;
+- **Visual configuration on the Plugins page** — dsh Settings → Plugins → this package's row "configure": volatile fields (relay URL / pairing code / local dsh URL) write back to the row config on save and hot-restart the bridge; cleared fields fall back to file/env defaults;
 - **Dual-channel QR onboarding** — cloud: the bridge uses its device token to proxy-issue a one-time pairing code and renders a `dshrelay://` QR (no admin console needed — family members just scan); LAN: a `dshlan://` direct-connect QR (security code = web launch token);
 - **Resumable reconnect (protocol v3)** — a relay disconnect no longer tears down local tunnels; outbound frames queue up and are replayed from the resume point after reconnect; simultaneous small frames are coalesced into `batch` envelopes with zero added latency;
 - **Self-healing reconnect** — backoff resets only on `welcome`; credential rejections and rate limiting back off ≥30s and honor the server's `retryAfterSecs`, preventing reconnect storms;
@@ -61,15 +61,15 @@ mklink /J C:\Users\<you>\.dsh\plugins\dsh-relay-plugin D:\code\cicbyte\dsh-mobil
 
 | Mode | Steps | QR protocol |
 |---|---|---|
-| Cloud relay | After the bridge is paired, the settings page's "phone connect QR" → scan with the phone app (cloud relay mode); the forwarding environment is created and paired automatically | `dshrelay://<relay-host>/?pair=<one-time code>&room=<room>&name=<name>` |
-| LAN direct | Settings page "LAN direct" card → generate QR → scan with the phone app to reach the local dsh web directly (no relay) | `dshlan://<LAN IP>:<dshPort>/?code=<launch token>&name=<PC name>` |
+| Cloud relay | After the bridge is paired, the row-config page's "phone connect QR" → scan with the phone app (cloud relay mode); the forwarding environment is created and paired automatically | `dshrelay://<relay-host>/?pair=<one-time code>&room=<room>&name=<name>` |
+| LAN direct | Row-config page "LAN direct" card → generate QR → scan with the phone app to reach the local dsh web directly (no relay) | `dshlan://<LAN IP>:<dshPort>/?code=<launch token>&name=<PC name>` |
 
-Both entries are served by this plugin's dsh web routes: `GET /mobile-bridge/status` (status, polled by the settings page every 5s: relay connection / phone online / active tunnels / connected-at), `POST /mobile-bridge/invite` (proxy-issued pairing code), `GET /mobile-bridge/lan-qr` (LAN QR).
+Both entries are served by this plugin's dsh web routes: `GET /mobile-bridge/status` (status, polled by the row-config page every 5s: relay connection / phone online / active tunnels / connected-at), `POST /mobile-bridge/invite` (proxy-issued pairing code), `GET /mobile-bridge/lan-qr` (LAN QR).
 
 ## Configuration (highest priority first)
 
-1. **Settings → "Phone Channel"** (user layer of the Host settings document `mobile-bridge` namespace, hot-effective in real time; cleared fields fall back to the base layer);
-2. **loader entry `config` / environment variables / `$DSH_HOME/mobile-bridge.json`** (these also form the base layer of the settings namespace):
+1. **Settings → Plugins → this package's row "configure"** (volatile fields of the row config; saving persists through ConfigEditor into the profile patch, and `loader/volatile-update` hot-restarts the bridge; cleared fields fall back to the fallback layer);
+2. **Environment variables / `$DSH_HOME/mobile-bridge.json`** (fallback for fields not set in the row config):
 
 ```json
 {
@@ -110,7 +110,7 @@ All fields (`resolveConfig`):
   disabled: true
 ```
 
-On effect the bridge is torn down (connections and tunnels closed) and the status routes plus the "Phone Channel" panel go offline with it (after a page refresh). Patch syntax: `insert` is push semantics; other blocks target an entry by `id` and override its fields (`name` optional — if present it must match, otherwise the block is skipped).
+On effect the bridge is torn down (connections and tunnels closed) and the status routes plus the row-config page go offline with it (after a page refresh). Patch syntax: `insert` is push semantics; other blocks target an entry by `id` and override its fields (`name` optional — if present it must match, otherwise the block is skipped).
 
 **Full uninstall**:
 
@@ -150,8 +150,8 @@ node ..\dsh-relay-service\test\test-mux.mjs ws://<relay> <code> <sessionId> # WS
 | File | Responsibility |
 |---|---|
 | `lib/bridge.js` | The `MobileBridge` core: frames aligned with the relay's `dsh-relay-v1` (hello/welcome, http-req/res, ws-open/frame/close (`__open__` sentinel, rid-idempotent reopen), ping/pong, batch/resume, tunnel teardown on peer offline) + `resolveConfig` three-level config + `update(config)` hot restart + standalone entry |
-| `lib/impl.js` | Host half: `apply(ctx, config)` — settings namespace registration + `settings/updated` hot reload + `/mobile-bridge/*` routes (status / invite / lan-qr) |
-| `lib/client.js` | Browser half: the "Phone Channel" settings page (`__ModuleLoader__` factory + `settings.section` slot + `settingsScope.bind` reads/writes) |
+| `lib/impl.js` | Host half: `apply(ctx, config)` — Config schema (volatile fields) + `loader/volatile-update` hot restart + `/mobile-bridge/*` routes (status / invite / lan-qr) |
+| `lib/client.js` | Browser half: the Plugins page "row config" page (`plugins.row.config` slot, `{ view, form }`-driven volatile form) |
 | `lib/index.js` | Thin re-export shell (entry compatibility) |
 | `tools/standalone.mjs` | Standalone run entry (no dsh plugin host) |
 
