@@ -67,7 +67,7 @@ mklink /J C:\Users\<you>\.dsh\plugins\dsh-relay-plugin D:\code\cicbyte\dsh-mobil
 
 ## 配置（优先级从高到低）
 
-1. **设置 → 插件 → 本包行的「配置」**（行 config 的 volatile 字段，保存经 ConfigEditor 写回 profile patch，`loader/volatile-update` 通知桥热重启；字段清除回落兜底层）；
+1. **设置 → 插件 → 本包行的「配置」**（行 config 的 volatile 字段，保存经 ConfigEditor 写回 profile patch，`loader/volatile-update` 通知桥热重启；字段清除回落兜底层）；「工作模式」快捷选择（当前实例 / dsh web :3080 / 自定义）一键定位本机 dsh 地址；
 2. **环境变量 / `$DSH_HOME/mobile-bridge.json`**（行 config 未设字段的兜底）：
 
 ```json

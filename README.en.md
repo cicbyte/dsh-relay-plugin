@@ -68,7 +68,7 @@ Both entries are served by this plugin's dsh web routes: `GET /mobile-bridge/sta
 
 ## Configuration (highest priority first)
 
-1. **Settings → Plugins → this package's row "configure"** (volatile fields of the row config; saving persists through ConfigEditor into the profile patch, and `loader/volatile-update` hot-restarts the bridge; cleared fields fall back to the fallback layer);
+1. **Settings → Plugins → this package's row "configure"** (volatile fields of the row config; saving persists through ConfigEditor into the profile patch, and `loader/volatile-update` hot-restarts the bridge; cleared fields fall back to the fallback layer); a "working mode" preset (current instance / dsh web :3080 / custom) pins the local dsh address in one click;
 2. **Environment variables / `$DSH_HOME/mobile-bridge.json`** (fallback for fields not set in the row config):
 
 ```json
