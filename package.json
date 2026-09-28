@@ -4,9 +4,9 @@
   "private": true,
   "description": "DSH 手机通道桌面桥插件：随 dsh 启停自动挂载，把 dsh-relay 流量（HTTP/WS）转发到本机 dsh web",
   "type": "module",
-  "main": "./lib/index.js",
+  "main": "./lib/entry.js",
   "exports": {
-    ".": "./lib/index.js",
+    ".": "./lib/entry.js",
     "./plugin": "./lib/impl.js",
     "./bridge": "./lib/bridge.js",
     "./client": "./lib/client.js",
