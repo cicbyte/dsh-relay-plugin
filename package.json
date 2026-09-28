@@ -7,7 +7,7 @@
   "main": "./lib/entry.js",
   "exports": {
     ".": "./lib/entry.js",
-    "./plugin": "./lib/impl.js",
+    "./impl": "./lib/impl.js",
     "./bridge": "./lib/bridge.js",
     "./client": "./lib/client.js",
     "./cordis.patch.yml": "./cordis.patch.yml",
