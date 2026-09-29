@@ -28,11 +28,11 @@ assert(typeof handler === 'function', '下载路由随 serveStatus 注册');
 const tmp = path.join(process.cwd(), 'test-dl-tmp.txt');
 writeFileSync(tmp, 'hello download');
 
-function req(method, url, { body, deviceId } = {}) {
+function req(method, url, { body, deviceId, headers } = {}) {
   const r = {
     method, url,
     socket: { remoteAddress: '127.0.0.1' },
-    headers: deviceId ? { 'x-device-id': deviceId } : {},
+    headers: { ...(deviceId ? { 'x-device-id': deviceId } : {}), ...(headers || {}) },
     async *[Symbol.asyncIterator]() { if (body) yield body; },
   };
   return r;
@@ -101,6 +101,18 @@ const wl = await call('GET', `/mobile-bridge/workspace-list?path=${encodeURIComp
 const wlRes = JSON.parse(wl.body).result;
 assert(Array.isArray(wlRes.files) && wlRes.files.some((f) => f.label === 'test-dl-tmp.txt'), 'workspace-list files=1 含文件');
 
+// 9. Range 断点：bytes=0-4 → 206 + Content-Range + accept-ranges
+const dl2 = JSON.parse((await call('POST', '/mobile-bridge/dl-create', {
+  body: JSON.stringify({ path: tmp, deviceId: DEV }),
+})).body).result;
+const rg = await call('GET', `/mobile-bridge/dl/${dl2.downloadId}?d=${DEV}`, {
+  headers: { range: 'bytes=0-4' },
+});
+assert(rg.code === 206, `Range 206（got ${rg.code}）`);
+assert(rg.headers['content-range'] === 'bytes 0-4/14', `Content-Range=${rg.headers['content-range']}`);
+assert(rg.headers['accept-ranges'] === 'bytes', 'accept-ranges: bytes');
+assert(rg.body === 'hello', `Range 0-4 返回="${rg.body}"`);
+
 unlinkSync(tmp);
-console.log('[download-smoke] PASS：设备绑定 403 + 不存在 404 + 过期上限 7 天 + 撤销 + files=1');
+console.log('[download-smoke] PASS：设备绑定 403 + 404 + 7天上限 + 撤销 + files=1 + Range 断点 206');
 process.exit(0);
