@@ -68,6 +68,17 @@ const WS = process.cwd(); // 模拟会话 cwd（工作区）
 const WS_POOL = path.join(WS, '.dsh-download');
 const GLOBAL_POOL = path.join(TEST_HOME, '.dsh-download');
 
+/** 等待入池复制完成（轮询 dl-stage-progress），返回最终进度。 */
+async function waitStage(taskId, ms = 5000) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < ms) {
+    const r = resultOf(await call('GET', `/mobile-bridge/dl-stage-progress?id=${encodeURIComponent(taskId)}`));
+    if (r && r.done) return r;
+    await new Promise((resolve) => setTimeout(resolve, 30));
+  }
+  throw new Error(`stage 复制超时 (${ms}ms)`);
+}
+
 // 造池外临时测试文件
 const tmp = path.join(WS, 'test-dl-tmp.txt');
 writeFileSync(tmp, 'hello download');
@@ -92,15 +103,25 @@ const denied = await call('POST', '/mobile-bridge/dl-create', {
 assert(jsonOf(denied).code === 403, '池外路径 dl-create 拒绝（403）');
 assert(String(jsonOf(denied).message).includes('下载池'), '拒绝原因提示下载池');
 
-// 2. dl-stage 入工作区池（复制，原文件保留）
+// 2. dl-stage 入工作区池（异步复制：立即返回 taskId，轮询进度到 done）
 const staged = await call('POST', '/mobile-bridge/dl-stage', {
   body: JSON.stringify({ path: tmp, deviceId: DEV, workspaceRoot: WS, target: 'workspace' }),
 });
-assert(jsonOf(staged).code === 200, 'dl-stage 200');
+assert(jsonOf(staged).code === 200, 'dl-stage 200（异步，立即返回）');
 const st = resultOf(staged);
+assert(typeof st.taskId === 'string' && st.taskId.length >= 8, `taskId=${st.taskId.slice(0, 8)}…`);
+const prog = await waitStage(st.taskId);
+assert(prog.done === true && !prog.error, '复制完成（done）');
+assert(prog.copied === 14 && prog.total === 14, `进度 copied=total=14（got ${prog.copied}/${prog.total}）`);
 assert(st.name === 'test-dl-tmp.txt' && st.pool === 'workspace', `入工作区池 name=${st.name}`);
 assert(st.size === 14, '入池副本大小 14');
 assert(existsSync(tmp), '原文件保留（复制非移动）');
+// 进度任务完成后仍可查询（终态保留 10min）
+const prog2 = resultOf(await call('GET', `/mobile-bridge/dl-stage-progress?id=${encodeURIComponent(st.taskId)}`));
+assert(prog2.done === true, '完成态进度可复查');
+// 未知任务 → 404
+const noTask = await call('GET', '/mobile-bridge/dl-stage-progress?id=nonexistent');
+assert(jsonOf(noTask).code === 404, '未知任务 404');
 
 // 3. dl-pool 列表：工作区池 + 全局池
 const pool = resultOf(await call('GET', `/mobile-bridge/dl-pool?workspace=${encodeURIComponent(WS)}`));
@@ -134,11 +155,12 @@ const cap = await call('POST', '/mobile-bridge/dl-create', {
 });
 assert(resultOf(cap).ttl === 7 * 24 * 3600, '有效期钳到 7 天上限');
 
-// 8. 同名再入池 → 自动加 (1) 后缀
+// 8. 同名再入池 → 自动加 (1) 后缀（wx 原子占位，复制进行中也不重名）
 const staged2 = resultOf(await call('POST', '/mobile-bridge/dl-stage', {
   body: JSON.stringify({ path: tmp, deviceId: DEV, workspaceRoot: WS, target: 'workspace' }),
 }));
 assert(staged2.name === 'test-dl-tmp (1).txt', `同名冲突自动后缀=${staged2.name}`);
+await waitStage(staged2.taskId);
 
 // 9. dl-list 含链接记录；dl-revoke 撤销
 const list = resultOf(await call('GET', '/mobile-bridge/dl-list'));
@@ -187,6 +209,7 @@ assert(jsonOf(gone).code === 410, '删池后旧链接 410（文件已不存在�
 const g = resultOf(await call('POST', '/mobile-bridge/dl-stage', {
   body: JSON.stringify({ path: staged2.path, deviceId: DEV, target: 'global' }),
 }));
+await waitStage(g.taskId);
 assert(g.pool === 'global' && path.dirname(g.path) === GLOBAL_POOL, '入全局池');
 // 全局池文件无需 workspaceRoot 也能 dl-create
 const gdRaw = await call('POST', '/mobile-bridge/dl-create', {
