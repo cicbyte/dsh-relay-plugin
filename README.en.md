@@ -25,7 +25,7 @@ Phone app ──cloud mode──▶ relay (public VPS) ──WS dsh-relay-v1─�
 - **Attachment download pool (.dsh-download)** — the phone can only download files inside the download pool: a per-workspace pool `<session-cwd>/.dsh-download` plus a global pool `$DSH_HOME/.dsh-download`; any disk file must first be staged into a pool (`dl-stage` copies it, the original stays put) before a link can be created — `dl-create` rejects out-of-pool paths with 403 (the boundary lives in the bridge, so bypassing the phone UI gains nothing); pool files can be listed (`dl-pool`) and deleted (`dl-pool-delete`);
 - **Resumable reconnect (protocol v3)** — a relay disconnect no longer tears down local tunnels; outbound frames queue up and are replayed from the resume point after reconnect; simultaneous small frames are coalesced into `batch` envelopes with zero added latency;
 - **Self-healing reconnect** — backoff resets only on `welcome`; credential rejections and rate limiting back off ≥30s and honor the server's `retryAfterSecs`, preventing reconnect storms;
-- **Safe forwarding** — only `cookie` / `content-type` / `accept` / `authorization` headers are forwarded, Host pinned to loopback to pass dsh's trust barrier; a pairing code under 6 chars keeps the bridge from starting (installing without pairing is safe).
+- **Safe forwarding** — only `cookie` / `content-type` / `accept` / `authorization` / `range` (download resume) headers are forwarded, Host pinned to loopback to pass dsh's trust barrier; a pairing code under 6 chars keeps the bridge from starting (installing without pairing is safe).
 
 ## Contents
 

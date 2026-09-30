@@ -8,6 +8,10 @@ import path from 'node:path';
 
 // DSH_HOME 指到临时目录：全局池不污染真实 ~/.dsh（须在导入 impl.js 前设好）
 const TEST_HOME = path.join(process.cwd(), 'test-dl-home-tmp');
+// 清场（上次失败提前退出可能留下池文件，保证断言幂等）
+for (const d of [TEST_HOME, path.join(process.cwd(), '.dsh-download')]) {
+  try { rmSync(d, { recursive: true, force: true }); } catch {}
+}
 process.env.DSH_HOME = TEST_HOME;
 const { apply } = await import('../lib/impl.js');
 
@@ -156,6 +160,14 @@ const rg = await call('GET', `/mobile-bridge/dl/${dl2.downloadId}?d=${DEV}`, {
 assert(rg.code === 206, `Range 206（got ${rg.code}）`);
 assert(rg.headers['content-range'] === 'bytes 0-4/14', `Content-Range=${rg.headers['content-range']}`);
 assert(rg.body === 'hello', `Range 0-4 返回="${rg.body}"`);
+
+// 10b. Range 起点越界 → 416 + octet-stream + 0 长度（隧道流式收尾可判定「本地已完整」）
+const rg416 = await call('GET', `/mobile-bridge/dl/${dl2.downloadId}?d=${DEV}`, {
+  headers: { range: 'bytes=99999-' },
+});
+assert(rg416.code === 416, `Range 越界 416（got ${rg416.code}）`);
+assert(rg416.headers['content-type'] === 'application/octet-stream', '416 带 octet-stream（流式接管）');
+assert(rg416.headers['content-length'] === '0', '416 零长度');
 
 // 11. 非法文件名删除 → 拒绝（防路径穿越）
 const evil = await call('POST', '/mobile-bridge/dl-pool-delete', {

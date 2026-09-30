@@ -25,7 +25,7 @@
 - **附件下载池（.dsh-download）** — 手机只能下载「下载池」内文件：工作区池 `<会话cwd>/.dsh-download` + 全局池 `$DSH_HOME/.dsh-download`；磁盘任意文件须先「添加入池」（`dl-stage` 复制，原文件保留）才能建链接，`dl-create` 对池外路径一律 403（安全边界在桥端，绕过手机 UI 也下不了任意文件）；池内文件支持 `dl-pool` 列表 / `dl-pool-delete` 删除；
 - **断线续传（协议 v3）** — relay 断线不拆本地隧道，出站帧进队列，重连后从断点回放无缝续流；同刻小帧合并 `batch` 信封零额外延迟；
 - **自愈重连** — 收到 `welcome` 才重置退避；凭据类拒绝与限流走 ≥30s 长退避并尊重服务端 `retryAfterSecs`，杜绝重连风暴；
-- **安全转发** — 只透传 `cookie` / `content-type` / `accept` / `authorization` 四个头，Host 固定 loopback 过 dsh 信任栅栏；配对码 <6 位桥不启动（装了不配对是安全的）。
+- **安全转发** — 只透传 `cookie` / `content-type` / `accept` / `authorization` / `range`（下载断点续传）五个头，Host 固定 loopback 过 dsh 信任栅栏；配对码 <6 位桥不启动（装了不配对是安全的）。
 
 ## 目录
 
