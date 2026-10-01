@@ -22,7 +22,7 @@
 - **随 dsh 启停自动挂载** — cordis bundle 插件（声明 `dsh.bundle` 自带挂载补丁，`dsh plugin add` 即激活），`patchReload: live` 热挂载免重启，不再手动开脚本；
 - **插件页可视配置** — dsh 设置 → 插件 → 本包行的「配置」：volatile 字段（Relay 地址 / 配对码 / 本机 dsh 地址）保存即写回本行 config，桥热重启生效；字段清除后回落文件/环境变量兜底；
 - **双通道扫码接入** — 云端：桥用设备令牌代领一次性配对码出 `dshrelay://` 二维码（免管理台，家人扫码即接入）；局域网：`dshlan://` 直连二维码（安全码 = web launch token）；
-- **附件下载池（.dsh-download）** — 手机只能下载「下载池」内文件：工作区池 `<会话cwd>/.dsh-download` + 全局池 `$DSH_HOME/.dsh-download`；磁盘任意文件须先「添加入池」（`dl-stage` 复制，原文件保留）才能建链接，`dl-create` 对池外路径一律 403（安全边界在桥端，绕过手机 UI 也下不了任意文件）；池内文件支持 `dl-pool` 列表 / `dl-pool-delete` 删除；
+- **附件下载池（.dsh-download，只读池）** — 手机只能下载「下载池」内文件：工作区池 `<会话cwd>/.dsh-download` + 全局池 `$DSH_HOME/.dsh-download`；池内容只由桌面侧放入（资源管理器/终端/DSH 会话直接写池目录），桥端没有任何入池原语（`dl-stage` 已移除）——配对手机拿不到池外任何字节，也不给全盘文件名枚举（`workspace-list` 只列目录）；`dl-create` 对池外路径一律 403（安全边界在桥端，绕过手机 UI 也下不了任意文件）；池内文件支持 `dl-pool` 列表 / `dl-pool-delete` 删除；
 - **断线续传（协议 v3）** — relay 断线不拆本地隧道，出站帧进队列，重连后从断点回放无缝续流；同刻小帧合并 `batch` 信封零额外延迟；
 - **自愈重连** — 收到 `welcome` 才重置退避；凭据类拒绝与限流走 ≥30s 长退避并尊重服务端 `retryAfterSecs`，杜绝重连风暴；
 - **安全转发** — 只透传 `cookie` / `content-type` / `accept` / `authorization` / `range`（下载断点续传）五个头，Host 固定 loopback 过 dsh 信任栅栏；配对码 <6 位桥不启动（装了不配对是安全的）。
@@ -66,7 +66,7 @@ mklink /J C:\Users\<you>\.dsh\plugins\dsh-relay-plugin D:\code\cicbyte\dsh-mobil
 
 两个入口都由本插件的 dsh web 路由供码：`GET /mobile-bridge/status`（状态，行配置页 5s 轮询：relay 连接 / 手机在线 / 活动隧道数 / 连接时刻）、`POST /mobile-bridge/invite`（代领配对码）、`GET /mobile-bridge/lan-qr`（局域网出码）。
 
-附件下载走下载池路由：`GET /mobile-bridge/dl-pool?workspace=<会话cwd>`（池列表：工作区池 + 全局池）、`POST /mobile-bridge/dl-stage`（任意磁盘文件复制入池）、`POST /mobile-bridge/dl-create`（池内文件建设备绑定链接）、`POST /mobile-bridge/dl-pool-delete`（删池内副本）、`GET /mobile-bridge/dl/<id>`（流式下载 + Range）、`GET /mobile-bridge/dl-list` / `POST /mobile-bridge/dl-revoke`（链接管理）。
+附件下载走下载池路由（只读池，入池 = 桌面侧直接写池目录）：`GET /mobile-bridge/dl-pool?workspace=<会话cwd>`（池列表：工作区池 + 全局池）、`POST /mobile-bridge/dl-create`（池内文件建设备绑定链接）、`POST /mobile-bridge/dl-pool-delete`（删池内副本）、`GET /mobile-bridge/dl/<id>`（流式下载 + Range）、`GET /mobile-bridge/dl-list` / `POST /mobile-bridge/dl-revoke`（链接管理）。`workspace-list` 只列目录（`files` 参数已废弃）。
 
 ## 配置（优先级从高到低）
 
@@ -140,7 +140,7 @@ node tools/standalone.mjs
 
 ```powershell
 node test\apply-smoke.mjs        # 插件形状 + settings 注册 + 热重载 + disposer 关闭
-node test\download-smoke.mjs     # 下载池模型：池外 403 + 入池复制 + 池列表/删除 + 设备绑定 + Range
+node test\download-smoke.mjs     # 只读下载池：stage 移除 + 池外 403 + 桌面侧入池 + 池列表/删除 + 设备绑定 + Range
 node test\lan-qr.mjs             # dshlan:// 出码逻辑
 node test\workspace-smoke.mjs    # workspace-roots + workspace-list 跨平台
 
