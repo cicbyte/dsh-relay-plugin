@@ -151,3 +151,40 @@ test('SSRF 栅栏：协议相对路径 //host 被拒（不发 error 之外的请
     await relay.close();
   }
 });
+
+test('SSRF 栅栏：反斜杠协议相对路径 /\\host 被拒（WHATWG 解析击穿前缀校验的回归用例）', async () => {
+  const dsh = await startFakeDsh();
+  let hitDsh = false;
+  dsh.server.on('request', (req, res) => {
+    if (req.url === '/ok') hitDsh = true;
+    res.writeHead(200); res.end();
+  });
+  let resolveErr;
+  const errP = new Promise((r) => (resolveErr = r));
+  let relayWs = null;
+  const relay = await startFakeRelay((_msg, ws) => {
+    relayWs = ws;
+  }, (frame) => {
+    if (frame.type === 'error' && frame.rid === 'bslash') resolveErr(frame);
+  });
+  const bridge = new MobileBridge({
+    relayUrl: `ws://127.0.0.1:${relay.port}`,
+    dshUrl: dsh.url,
+    deviceId: 'dev_test',
+    token: 'tok_test',
+    name: 'bridge-test',
+  }, quietLogger);
+  try {
+    bridge.start();
+    await new Promise((r) => setTimeout(r, 300));
+    // 实际路径字符串 = /\evil.invalid/ok（JSON 传输保留反斜杠字面量）
+    relayWs.send(JSON.stringify({ type: 'http-req', rid: 'bslash', method: 'GET', path: '/\\evil.invalid/ok' }));
+    const frame = await Promise.race([errP, new Promise((_, rej) => setTimeout(() => rej(new Error('error 帧未到达')), 5000))]);
+    assert.equal(frame.code, 'bridge-bad-path');
+    assert.equal(hitDsh, false, '反斜杠 SSRF 路径不得触达 dsh');
+  } finally {
+    bridge.close();
+    await dsh.close();
+    await relay.close();
+  }
+});
